@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture - Unbound</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    .filter-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    .filter-table th, .filter-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    .filter-table th {
+      background-color: #f5f5f5;
+      text-align: left;
+    }
+    .highlight {
+      font-weight: bold;
+      color: #333;
+    }
+    .table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+}
+
+/* Optional: add some spacing around the container */
+.table-responsive {
+  margin: 1rem 0;
+}
+
+/* Optional: make table full width */
+.filter-table {
+  width: 100%;
+  min-width: 600px; /* ensure table is wide enough to scroll */
+}
+
+/* Smaller font on mobile for better fit */
+@media (max-width: 600px) {
+  .filter-table th,
+  .filter-table td {
+    padding: 6px 4px;
+    font-size: 0.9rem;
+
+  }
+  .heading{
+    font-size: 1.5rem;
+  }
+  .diagram{
+    height: 400px;
+  }
+}
+
+  
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="container header-container">
+      <h1 class="logo">Unbound</h1>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('index') }}">Home</a></li>
+          <li><a href="{{ url_for('architecture') }}" class="active">Architecture</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class='heading'>Project Architecture</h1>
+
+    <div class="diagram-container">
+      <img src="{{ url_for('static', filename='images/architecture-diagram.png') }}" 
+           alt="Architecture Diagram" 
+           class="diagram" />
+    </div>
+
+    <h2>Overview</h2>
+    <p>
+      This book recommendation system uses <strong>Flask</strong> for the backend and a lightweight frontend.
+      Recommendations are generated using collaborative filtering with <strong>K-Nearest Neighbors (KNN)</strong>.
+    </p>
+
+    <h2>Architecture Components</h2>
+    <ul>
+      <li><strong>Data Loading & Preprocessing:</strong> Clean book, user, and rating datasets</li>
+      <li><strong>Data Filtering:</strong> Reduce dataset size by keeping only active users and popular books</li>
+      <li><strong>Model Training:</strong> Train a KNN model on a sparse pivot matrix</li>
+      <li><strong>Serialization:</strong> Save model and data using <code>pickle</code></li>
+      <li><strong>Flask Backend:</strong> API for search and recommendations</li>
+      <li><strong>Frontend:</strong> Autocomplete & real-time book suggestions</li>
+    </ul>
+
+    <h2>Step-by-Step Workflow</h2>
+    <ol>
+      <li><strong>Prepare Datasets:</strong> Load and clean data</li>
+      <li><strong>Filter Users:</strong> Keep only users with more than 200 ratings</li>
+      <li><strong>Filter Books:</strong> Keep only books with at least 50 ratings</li>
+      <li><strong>Train Model:</strong> Use collaborative filtering (KNN)</li>
+      <li><strong>Save Model:</strong> Serialize model & pivot table</li>
+      <li><strong>Deploy:</strong> Serve via Flask with interactive frontend</li>
+    </ol>
+
+    <h2>Data Filtering Steps</h2>
+<p>
+  To improve recommendation quality and reduce noise, the dataset is filtered in two major stages:
+</p>
+<div class="table-responsive">
+  <table class="filter-table">
+    <thead>
+      <tr>
+        <th>Step</th>
+        <th>Filter Condition</th>
+        <th>Reason</th>
+        <th>Records Before</th>
+        <th>Records After</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td class="highlight">Users with > 200 ratings</td>
+        <td>Focus on experienced readers who provide richer preference data</td>
+        <td>105283</td>
+        <td>899</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td class="highlight">Books with ≥ 50 ratings</td>
+        <td>Ensure each book has enough ratings for reliable similarity calculation</td>
+        <td>160269</td>
+        <td>742</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p class="note">*Numbers shown are from the dataset used during training</p>
+
+
+    <h2>Technologies Used</h2>
+    <ul>
+      <li><strong>Python + Flask</strong></li>
+      <li><strong>pandas, scikit-learn, SciPy</strong></li>
+      <li><strong>HTML + CSS + JavaScript</strong></li>
+    </ul>
+  </main>
+  {% include 'footer.html' %}
+</body>
+</html>

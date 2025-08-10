@@ -1,58 +1,42 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
-import numpy as np
-from scipy.sparse import csr_matrix
-from sklearn.neighbors import NearestNeighbors
 import pickle
+from scipy.sparse import csr_matrix
+import re
 
+
+
+# Initialize Flask app
 app = Flask(__name__)
 
-def load_data():
-    # Load datasets
-    books = pd.read_csv('dataset/BX-Books.csv', sep=';', on_bad_lines='skip', encoding="latin-1")
-    books = books[['ISBN', 'Book-Title', 'Book-Author', 'Year-Of-Publication', 'Publisher']]
-    books.rename(columns={'Book-Title': 'title', 'Book-Author': 'author', 'Year-Of-Publication': 'year', 'Publisher': 'publisher'}, inplace=True)
+# Load pre-trained model and pivot table
+model = pickle.load(open('model/book_model.pkl', 'rb'))
+book_pivot = pd.read_pickle('model/book_pivot.pkl')
+book_sparse = csr_matrix(book_pivot)
 
-    users = pd.read_csv('dataset/BX-Users.csv', sep=';', on_bad_lines='skip', encoding="latin-1")
-    users.rename(columns={'User-ID': 'user_id', 'Location': 'location', 'Age': 'age'}, inplace=True)
-
-    ratings = pd.read_csv('dataset/BX-Book-Ratings.csv', sep=';', on_bad_lines='skip', encoding="latin-1")
-    ratings.rename(columns={'User-ID': 'user_id', 'Book-Rating': 'rating'}, inplace=True)
-
-    # Filter users with more than 200 ratings
-    active_users = ratings['user_id'].value_counts()
-    ratings = ratings[ratings['user_id'].isin(active_users[active_users > 200].index)]
-
-    # Merge ratings with books
-    ratings_with_books = ratings.merge(books, on='ISBN')
-    number_rating = ratings_with_books.groupby('title')['rating'].count().reset_index()
-    number_rating.rename(columns={'rating': 'number_of_ratings'}, inplace=True)
-    final_rating = ratings_with_books.merge(number_rating, on='title')
-    final_rating = final_rating[final_rating['number_of_ratings'] >= 50]
-
-    # Drop duplicates and create pivot table
-    new_final_rating = final_rating.drop_duplicates(['user_id', 'title'])
-    book_pivot = new_final_rating.pivot_table(columns='user_id', index='title', values='rating').fillna(0)
-
-    # Create sparse matrix
-    book_sparse = csr_matrix(book_pivot)
-    
-    return book_pivot, book_sparse
-
-def train_model(book_sparse):
-    # Train the model
-    model = NearestNeighbors(algorithm='brute', metric='cosine')
-    model.fit(book_sparse)
-    return model
-
-# Load and preprocess data, train model
-book_pivot, book_sparse = load_data()
-model = train_model(book_sparse)
 book_titles_lower = [title.lower() for title in book_pivot.index.tolist()]
+
+
+# Load metadata (author info) from your books dataset
+books_metadata = pd.read_csv('dataset/BX-Books.csv', sep=';', on_bad_lines='skip', encoding="latin-1")
+books_metadata = books_metadata[['ISBN', 'Book-Title', 'Book-Author']]
+books_metadata.rename(columns={'Book-Title': 'title', 'Book-Author': 'author'}, inplace=True)
+books_metadata.drop_duplicates(subset=['title'], inplace=True)
+books_metadata['title_lower'] = books_metadata['title'].str.lower()
+
+# Create a dict for fast author lookup by title
+title_to_author = dict(zip(books_metadata['title_lower'], books_metadata['author']))
+
+# Helper function to normalize titles for duplicate detection
+def normalize_title(title):
+    return re.sub(r'\W+', '', title.lower())
 
 @app.route('/')
 def index():
     return render_template('index.html')
+@app.route('/architecture')
+def architecture():
+    return render_template('architecture.html')
 
 @app.route('/suggest', methods=['POST'])
 def suggest():
@@ -63,13 +47,49 @@ def suggest():
 @app.route('/recommend', methods=['POST'])
 def recommend():
     selected_title = request.json.get('selected_title', '').strip().lower()
-    if selected_title in book_titles_lower:
-        book_id = book_titles_lower.index(selected_title)
-        distances, suggestions = model.kneighbors(book_sparse[book_id], n_neighbors=6)
-        recommended_books = [book_pivot.index[suggestions[0][i]] for i in range(1, len(suggestions[0]))]
-        return jsonify(recommended_books)
-    else:
-        return jsonify([])  # Return empty list if book not found
+    top_n = request.json.get('n', 5)
+
+    if selected_title not in book_titles_lower:
+        return jsonify([])
+
+    book_id = book_titles_lower.index(selected_title)
+    distances, suggestions = model.kneighbors(book_sparse[book_id], n_neighbors=20)
+
+    input_author = title_to_author.get(selected_title, '').lower()
+
+    recs = []
+    seen_titles = set()
+
+    for i in range(1, len(suggestions[0])):
+        title = book_pivot.index[suggestions[0][i]]
+        norm_title = normalize_title(title)
+        if norm_title in seen_titles:
+            continue
+        seen_titles.add(norm_title)
+
+        dist = distances[0][i]
+        author = title_to_author.get(title.lower(), '').lower()
+        if author and input_author and author == input_author:
+            dist *= 0.9
+
+        recs.append((title, dist))
+
+    recs.sort(key=lambda x: x[1])
+    filtered_recs = [r for r in recs if r[1] < 0.4]
+
+    if len(filtered_recs) < top_n:
+        needed = top_n - len(filtered_recs)
+        additional = [r for r in recs if r[1] >= 0.4][:needed]
+        filtered_recs.extend(additional)
+
+    # Return title + confidence
+    recommended_books = [
+        {"title": title, "confidence": 1 - dist}
+        for title, dist in filtered_recs[:top_n]
+    ]
+
+    return jsonify(recommended_books)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

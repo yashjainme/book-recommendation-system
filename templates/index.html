@@ -2,24 +2,51 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Recommendation System</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unbound - Find Your Next Adventure</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
 </head>
 
 <body>
-    <div class="container">
-        <h1>📚 Discover Your Next Read</h1>
-        <p>Find personalized book recommendations. Start by typing a book title below.</p>
-        <div class="search-container">
-            <input type="text" id="book-title" placeholder="Search by book title..." onkeyup="getSuggestions()">
-            <div id="suggestions" class="dropdown-content"></div>
-        </div>
-        <div id="recommendations"></div>
-    </div>
-    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+  <header class = 'header'> 
+  <div class="container header-container">
+    <h1 class="logo">Unbound</h1>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="{{ url_for('index') }}" class = 'active'>Home</a></li>
+        <li><a href="{{ url_for('architecture') }}">Architecture</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+  <main class="container">
+    <!-- Home Page -->
+    <section id="home-page" class="page-section active">
+      <h2 class="tagline">Explore New Worlds, One Book at a Time</h2>
+
+      <div class="search-wrapper">
+        <input
+          type="text"
+          id="book-title"
+          placeholder="Enter a book title or keyword..."
+          autocomplete="off"
+          onkeyup="getSuggestions()"
+        />
+        <button type="button" class="search-button" onclick="searchSelected()">Search</button>
+        <div id="suggestions" class="dropdown-content"></div>
+      </div>
+
+      <div id="recommendations" aria-live="polite" role="region"></div>
+    </section>
+
+  </main>
+  {% include 'footer.html' %}
+
+
+  <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
 </body>
 
 </html>
